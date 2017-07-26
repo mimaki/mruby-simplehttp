@@ -5,66 +5,67 @@ class SimpleHttp
   DEFAULT_ACCEPT = "*/*"
   SEP = "\r\n"
 
-  def unix_socket_class_exist?
-      c = Module.const_get("UNIXSocket")
-      c.is_a?(Class)
-  rescue
-    return false
-  end
+  # def unix_socket_class_exist?
+  #     c = Module.const_get("UNIXSocket")
+  #     c.is_a?(Class)
+  # rescue
+  #   return false
+  # end
 
-  def socket_class_exist?
-      c = Module.const_get("TCPSocket")
-      c.is_a?(Class)
-  rescue
-      return false
-  end
+  # def socket_class_exist?
+  #     c = Module.const_get("TCPSocket")
+  #     c.is_a?(Class)
+  # rescue
+  #     return false
+  # end
 
-  def uv_module_exist?
-      c = Module.const_get("UV")
-      c.is_a?(Module)
-  rescue
-      return false
-  end
+  # def uv_module_exist?
+  #     c = Module.const_get("UV")
+  #     c.is_a?(Module)
+  # rescue
+  #     return false
+  # end
 
   def initialize(schema, address, port = nil)
 
     @uri = {}
-    if schema == 'unix'
-      raise "UNIXSocket class not found" unless unix_socket_class_exist?
-      @uri[:schema] = schema
-      @uri[:file] = address
-      return self
-    end
+    # if schema == 'unix'
+    #   raise "UNIXSocket class not found" unless unix_socket_class_exist?
+    #   @uri[:schema] = schema
+    #   @uri[:file] = address
+    #   return self
+    # end
 
-    @use_socket = false
-    @use_uv = false
+    # @use_socket = false
+    # @use_uv = false
 
-    if socket_class_exist?
-      @use_socket = true
-    end
+    # if socket_class_exist?
+    #   @use_socket = true
+    # end
 
-    if uv_module_exist?
-      @use_uv = true
-    end
+    # if uv_module_exist?
+    #   @use_uv = true
+    # end
     
-    if @use_socket
-      # nothing
-    elsif @use_uv
-      ip = ""
-      UV::getaddrinfo(address, "http", ai_family: :ipv4) do |x, info|
-        if info 
-          ip = info.addr
-        end
-      end
-      UV::run()
-      @uri[:ip] = ip
-    else
-      raise "Not found Socket Class or UV Module"
-    end
+    # if @use_socket
+    #   # nothing
+    # elsif @use_uv
+    #   ip = ""
+    #   UV::getaddrinfo(address, "http", ai_family: :ipv4) do |x, info|
+    #     if info 
+    #       ip = info.addr
+    #     end
+    #   end
+    #   UV::run()
+    #   @uri[:ip] = ip
+    # else
+    #   raise "Not found Socket Class or UV Module"
+    # end
     @uri[:schema] = schema
     @uri[:address] = address
     if schema == "https"
-      @uri[:port] = port ? port.to_i : DEFAULTHTTPSPORT
+      # @uri[:port] = port ? port.to_i : DEFAULTHTTPSPORT
+      raise "Not support HTTPS protocol"
     else
       @uri[:port] = port ? port.to_i : DEFAULTPORT
     end
@@ -101,41 +102,41 @@ class SimpleHttp
 
   def send_request(request_header)
     response_text = ""
-    if @uri[:schema] == "unix"
-        socket = UNIXSocket.open(@uri[:file])
-        socket.write(request_header)
-        while (t = socket.read(1024))
-          if block_given?
-            yield t
-            next
-          end
-          response_text += t
-        end
-        socket.close
+    # if @uri[:schema] == "unix"
+    #     socket = UNIXSocket.open(@uri[:file])
+    #     socket.write(request_header)
+    #     while (t = socket.read(1024))
+    #       if block_given?
+    #         yield t
+    #         next
+    #       end
+    #       response_text += t
+    #     end
+    #     socket.close
 
-    elsif @use_socket
+    # elsif @use_socket
       socket = TCPSocket.new(@uri[:address], @uri[:port])
-      if @uri[:schema] == "https"
-        entropy = PolarSSL::Entropy.new
-        ctr_drbg = PolarSSL::CtrDrbg.new entropy
-        ssl = PolarSSL::SSL.new
-        ssl.set_endpoint PolarSSL::SSL::SSL_IS_CLIENT
-        ssl.set_rng ctr_drbg
-        ssl.set_socket socket
-        ssl.handshake
-        ssl.write request_header
-        while chunk = ssl.read(2048)
-          if block_given?
-            yield chunk
-            next
-          end
+      # if @uri[:schema] == "https"
+      #   entropy = PolarSSL::Entropy.new
+      #   ctr_drbg = PolarSSL::CtrDrbg.new entropy
+      #   ssl = PolarSSL::SSL.new
+      #   ssl.set_endpoint PolarSSL::SSL::SSL_IS_CLIENT
+      #   ssl.set_rng ctr_drbg
+      #   ssl.set_socket socket
+      #   ssl.handshake
+      #   ssl.write request_header
+      #   while chunk = ssl.read(2048)
+      #     if block_given?
+      #       yield chunk
+      #       next
+      #     end
           
-          response_text += chunk
-        end
-        ssl.close_notify
-        socket.close
-        ssl.close
-      else
+      #     response_text += chunk
+      #   end
+      #   ssl.close_notify
+      #   socket.close
+      #   ssl.close
+      # else
         socket.write(request_header)
         while (t = socket.read(1024))
           if block_given?
@@ -146,29 +147,29 @@ class SimpleHttp
           response_text += t
         end
         socket.close
-      end
-    elsif @use_uv
-      socket = UV::TCP.new()
-      socket.connect(UV.ip4_addr(@uri[:ip].sin_addr, @uri[:port])) do |x|
-        if x == 0
-          socket.write(request_header) do |x|
-            socket.read_start do |b|
-              if block_given?
-                yield b.to_s
-                next
-              end    
+      # end
+    # elsif @use_uv
+    #   socket = UV::TCP.new()
+    #   socket.connect(UV.ip4_addr(@uri[:ip].sin_addr, @uri[:port])) do |x|
+    #     if x == 0
+    #       socket.write(request_header) do |x|
+    #         socket.read_start do |b|
+    #           if block_given?
+    #             yield b.to_s
+    #             next
+    #           end
                       
-              response_text += b.to_s 
-            end
-          end
-        else
-          socket.close()
-        end
-      end
-      UV::run()
-    else
-      raise "Not found Socket Class or UV Module"
-    end
+    #           response_text += b.to_s
+    #         end
+    #       end
+    #     else
+    #       socket.close()
+    #     end
+    #   end
+    #   UV::run()
+    # else
+    #   raise "Not found Socket Class or UV Module"
+    # end
     response_text
   end
 
